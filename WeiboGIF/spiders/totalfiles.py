@@ -81,11 +81,7 @@ class WeiboGIFSpider(CrawlSpider):
             # 提取页面中显示的GIF链接 #
             gifurl = targeturl.xpath('div/a/img[@class="ib"]/@src').extract_first() # GIF Url
             # 判断微博中存在一张还是多张GIF图，然后构建不同的 MyUrl
-            if TotalUrl:
-                MyUrl = TotalUrl[0]
-            else:
-                MyUrl = gifurl.replace('wap180', 'large')
-
+            MyUrl = TotalUrl[0] if TotalUrl else gifurl.replace('wap180', 'large')
             if repost:
                 item["RepostNum"] = str(repost[0])
             if commentnum:
@@ -94,19 +90,18 @@ class WeiboGIFSpider(CrawlSpider):
             if others:
                 others = others.split(u"\u6765\u81ea")
                 item["PostTime"] = others[0]
-            # 提取微博评论链接，并利用 parse_Comment 函数进行解析 #
-            # 其中评论数据以 list 形式呈现出来 #
-            Comment_url = targeturl.xpath("div/a[@class='cc' and @href]/@href").extract_first()
-            if Comment_url:
+            if Comment_url := targeturl.xpath(
+                "div/a[@class='cc' and @href]/@href"
+            ).extract_first():
                 item['ContentUrl'] = Comment_url
                 CommentList = []
                 yield Request(url = Comment_url, meta = {'item': item, 'Comment': CommentList, 'GIFUrl': MyUrl}, callback = self.parse_Comment)
             else:
                 yield item
 
-        # 提取翻页选项的URL #
-        Content_nextpage = sel.xpath("//div[@id='pagelist']/form/div/a[1]/@href").extract()
-        if Content_nextpage:
+        if Content_nextpage := sel.xpath(
+            "//div[@id='pagelist']/form/div/a[1]/@href"
+        ).extract():
             yield Request(url = self.host + Content_nextpage[0], callback = self.parse_User)
 
     # 定义提取评论数据的函数 #

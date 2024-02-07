@@ -74,11 +74,7 @@ class WeiboGIFSpider(CrawlSpider):
             # 提取页面中显示的GIF链接 #
             gifurl = targeturl.xpath('div/a/img[@class="ib"]/@src').extract_first() # GIF Url
             # 判断微博中存在一张还是多张GIF图，然后构建不同的 MyUrl
-            if TotalUrl:
-                MyUrl = TotalUrl[0]
-            else:
-                MyUrl = gifurl.replace('wap180', 'large')
-
+            MyUrl = TotalUrl[0] if TotalUrl else gifurl.replace('wap180', 'large')
             if repost:
                 item["RepostNum"] = str(repost[0])
             if commentnum:
@@ -93,9 +89,9 @@ class WeiboGIFSpider(CrawlSpider):
             item['ContentUrl'] = Comment_url
             CommentList = []
             yield Request(url = Comment_url, meta = {'item': item, 'Comment': CommentList, 'GIFUrl': MyUrl}, callback = self.parse_Comment)
-        # 提取翻页选项的URL #
-        Content_nextpage = sel.xpath("//div[@id='pagelist']/form/div/a[1]/@href").extract()
-        if Content_nextpage:
+        if Content_nextpage := sel.xpath(
+            "//div[@id='pagelist']/form/div/a[1]/@href"
+        ).extract():
             yield Request(url = self.host + Content_nextpage[0], callback = self.parse)
 
 

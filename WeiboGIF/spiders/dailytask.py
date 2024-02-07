@@ -82,11 +82,7 @@ class WeiboGIFSpider(CrawlSpider):
             # 提取页面中显示的GIF链接 #
             gifurl = targeturl.xpath('div/a/img[@class="ib"]/@src').extract_first() # GIF Url
             # 判断微博中存在一张还是多张GIF图，然后构建不同的 MyUrl
-            if TotalUrl:
-                MyUrl = TotalUrl[0]
-            else:
-                MyUrl = gifurl.replace('wap180', 'large')
-
+            MyUrl = TotalUrl[0] if TotalUrl else gifurl.replace('wap180', 'large')
             if repost:
                 item["RepostNum"] = str(repost[0])
             if commentnum:
@@ -95,10 +91,9 @@ class WeiboGIFSpider(CrawlSpider):
             if others:
                 others = others.split(u"\u6765\u81ea")
                 item["PostTime"] = others[0]
-            # 提取微博评论链接，并利用 parse_Comment 函数进行解析 #
-            # 其中评论数据以 list 形式呈现出来 #
-            Comment_url = targeturl.xpath("div/a[@class='cc' and @href]/@href").extract_first()
-            if Comment_url:
+            if Comment_url := targeturl.xpath(
+                "div/a[@class='cc' and @href]/@href"
+            ).extract_first():
                 item['ContentUrl'] = Comment_url
                 CommentList = []
                 yield Request(url = Comment_url, meta = {'item': item, 'Comment': CommentList, 'GIFUrl': MyUrl}, callback = self.parse_Comment)
@@ -109,16 +104,13 @@ class WeiboGIFSpider(CrawlSpider):
         Content_nextpage = sel.xpath("//div[@id='pagelist']/form/div/a[1]/@href").extract()
         # 判断当前界面最后一条微博的时间，决定是否翻页
         LastWeibo = sel.xpath("//div[@class='c' and @id]")[-1]
-        Time = LastWeibo.xpath('div/span[@class="ct"]/text()').extract_first()
-        if Time:
+        if Time := LastWeibo.xpath('div/span[@class="ct"]/text()').extract_first():
             LastTime = Time.split(u"\u6765\u81ea")
             pattern = re.compile(r'\d+')
             d = re.findall(pattern, LastTime[0])
             # 如果 d 的长度小于 4 说明该网页中最后一条微博的发送时间是今天，因此翻页 #
             if len(d) < 4:
                 yield Request(url = self.host + Content_nextpage[0], callback = self.parse_User)
-            # 如果 d 的长度不等于 2，则判断该网页中最后一条微博的发送时间与程序
-            # 开始运行时间之间的间隔，如果时间间隔在一天以内则选择加载下一页的数据。
             elif len(d) == 6:
                 posttime = datetime(int(d[0]),int(d[1]), int(d[2]), int(d[3]), int(d[4]), int(d[5]))
                 deltadays = (posttime - self.crawltime).days
@@ -126,7 +118,7 @@ class WeiboGIFSpider(CrawlSpider):
                     yield Request(url = self.host + Content_nextpage[0], callback = self.parse_User)
             else:
                 year = time.strftime("%Y")
-                posttime = datetime(int(year), int(d[0]), int(d[1]), int(d[2]), int(d[3]), int(0))
+                posttime = datetime(int(year), int(d[0]), int(d[1]), int(d[2]), int(d[3]), 0)
                 deltadays = (posttime - self.crawltime).days
                 if deltadays > -2:
                     yield Request(url = self.host + Content_nextpage[0], callback = self.parse_User)
